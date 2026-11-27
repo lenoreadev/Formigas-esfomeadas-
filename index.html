@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Formigas Inúteis</title>
+<style>
+:root{--bg:#f4ead5;--fg:#3b2a1a;--card:#fff8e8;--acc:#b5532a;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#2a2018;--fg:#f1e3c8;--card:#3a2d22;--acc:#e8905c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#2a2018;--fg:#f1e3c8;--card:#3a2d22;--acc:#e8905c;color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column}
+header{padding:10px 12px;text-align:center}
+h1{font-size:1.1rem;margin:0 0 8px}
+.bar{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+button{background:var(--card);color:var(--fg);border:2px solid transparent;border-radius:12px;padding:8px 10px;font-size:.85rem;cursor:pointer}
+button.on{border-color:var(--acc)}
+small{display:block;margin-top:6px;opacity:.75}
+canvas{flex:1;width:100%;touch-action:none;display:block}
+</style>
+</head>
+<body>
+<header>
+<h1>🐜 Formigas Inúteis</h1>
+<div class="bar" id="bar"></div>
+<small>Escolha a comida e toque na tela para colocá-la. <span id="cnt"></span></small>
+</header>
+<canvas id="c"></canvas>
+<script>
+const FOODS=[
+{n:"🍞 Migalha",emoji:"🍞",speed:0.6,size:16,color:"#c89b5a"},
+{n:"🍯 Mel",emoji:"🍯",speed:0.3,size:22,color:"#e0a020"},
+{n:"🍰 Bolo",emoji:"🍰",speed:1.2,size:26,color:"#e58aa8"}
+];
+let sel=0;
+const bar=document.getElementById("bar");
+FOODS.forEach((f,i)=>{
+const b=document.createElement("button");
+b.textContent=f.n+" ("+(f.speed<=0.3?"lenta":f.speed<=0.6?"média":"rápida")+")";
+b.onclick=()=>{sel=i;[...bar.children].forEach((x,j)=>x.classList.toggle("on",j===i))};
+if(i===0)b.classList.add("on");
+bar.appendChild(b);
+});
+const cv=document.getElementById("c"),ctx=cv.getContext("2d");
+function resize(){cv.width=cv.clientWidth;cv.height=cv.clientHeight}
+addEventListener("resize",resize);resize();
+const foods=[];
+const ants=Array.from({length:40},()=>({x:Math.random()*cv.width,y:Math.random()*cv.height,a:Math.random()*6.28,t:null}));
+cv.addEventListener("pointerdown",e=>{
+const r=cv.getBoundingClientRect();
+const f=FOODS[sel];
+foods.push({x:e.clientX-r.left,y:e.clientY-r.top,left:100,f});
+});
+function nearest(a){
+let best=null,d=1e9;
+for(const f of foods){const k=(f.x-a.x)**2+(f.y-a.y)**2;if(k<d){d=k;best=f}}
+return best;
+}
+function step(){
+ctx.clearRect(0,0,cv.width,cv.height);
+for(let i=foods.length-1;i>=0;i--){
+const f=foods[i];
+if(f.left<=0){foods.splice(i,1);continue}
+ctx.font=(f.f.size*(0.4+f.left/100*0.6))+"px serif";
+ctx.textAlign="center";ctx.textBaseline="middle";
+ctx.fillText(f.f.emoji,f.x,f.y);
+}
+let eating=0;
+for(const a of ants){
+const t=nearest(a);
+if(t){
+const dx=t.x-a.x,dy=t.y-a.y,d=Math.hypot(dx,dy);
+const target=Math.atan2(dy,dx);
+let diff=target-a.a;
+diff=Math.atan2(Math.sin(diff),Math.cos(diff));
+a.a+=diff*0.15+(Math.random()-.5)*0.3;
+if(d<14){t.left-=t.f.speed*0.05;eating++;}
+else{a.x+=Math.cos(a.a)*1.6;a.y+=Math.sin(a.a)*1.6}
+}else{
+a.a+=(Math.random()-.5)*0.5;
+a.x+=Math.cos(a.a)*0.9;a.y+=Math.sin(a.a)*0.9;
+}
+a.x=(a.x+cv.width)%cv.width;a.y=(a.y+cv.height)%cv.height;
+ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.a);
+ctx.fillStyle=getComputedStyle(document.body).color;
+ctx.beginPath();ctx.ellipse(-5,0,4,2.6,0,0,7);ctx.fill();
+ctx.beginPath();ctx.ellipse(0,0,2.6,2,0,0,7);ctx.fill();
+ctx.beginPath();ctx.ellipse(4.5,0,3,2.4,0,0,7);ctx.fill();
+ctx.restore();
+}
+document.getElementById("cnt").textContent=ants.length+" formigas, "+eating+" comendo";
+requestAnimationFrame(step);
+}
+step();
+</script>
+</body>
+</html>
